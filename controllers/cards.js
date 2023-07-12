@@ -1,4 +1,8 @@
-const { CastError } = require('mongoose').Error;
+const {
+  CastError,
+  ValidationError,
+  DocumentNotFoundError,
+} = require('mongoose').Error;
 
 const Card = require('../models/card');
 
@@ -26,7 +30,15 @@ function createCard(req, res) {
   Card.create({ name, link, owner })
     .then((card) => card.populate('owner'))
     .then((card) => res.send(card))
-    .catch(() => {
+    .catch((err) => {
+      if (err instanceof ValidationError) {
+        res
+          .status(BAD_REQUEST_ERROR)
+          .send({
+            message: 'Переданы некорректные данные при создании карточки',
+          });
+        return;
+      }
       res
         .status(INTERNAL_SERVER_ERROR)
         .send({ message: 'На сервере произошла ошибка' });
@@ -37,15 +49,21 @@ function deleteCard(req, res) {
   Card.findByIdAndRemove(req.params.cardId)
     .then((card) => {
       if (!card) {
-        throw new CastError('');
+        throw new DocumentNotFoundError('');
       }
       res.send({ message: 'Пост удалён' });
     })
     .catch((err) => {
-      if (err instanceof CastError) {
+      if (err instanceof DocumentNotFoundError) {
         res
           .status(NOT_FOUND_ERROR)
           .send({ message: 'Запрашиваемый пост не найден' });
+        return;
+      }
+      if (err instanceof CastError) {
+        res.status(BAD_REQUEST_ERROR).send({
+          message: 'Переданы некорректные данные при постановке лайка',
+        });
         return;
       }
       res
@@ -61,15 +79,20 @@ function putLike(req, res) {
     { new: true },
   )
     .populate(['owner', 'likes'])
-    .then((card) => res.send(card))
+    .then((card) => {
+      if (!card) {
+        throw new DocumentNotFoundError('');
+      }
+      res.send(card);
+    })
     .catch((err) => {
-      if (err.path === 'likes') {
+      if (err instanceof CastError) {
         res.status(BAD_REQUEST_ERROR).send({
           message: 'Переданы некорректные данные при постановке лайка',
         });
         return;
       }
-      if (err instanceof CastError) {
+      if (err instanceof DocumentNotFoundError) {
         res
           .status(NOT_FOUND_ERROR)
           .send({ message: 'Запрашиваемый пост не найден' });
@@ -88,15 +111,20 @@ function deleteLike(req, res) {
     { new: true },
   )
     .populate(['owner', 'likes'])
-    .then((card) => res.send(card))
+    .then((card) => {
+      if (!card) {
+        throw new DocumentNotFoundError('');
+      }
+      res.send(card);
+    })
     .catch((err) => {
-      if (err.path === 'likes') {
-        res
-          .status(BAD_REQUEST_ERROR)
-          .send({ message: 'Переданы некорректные данные при снятии лайка' });
+      if (err instanceof CastError) {
+        res.status(BAD_REQUEST_ERROR).send({
+          message: 'Переданы некорректные данные при постановке лайка',
+        });
         return;
       }
-      if (err instanceof CastError) {
+      if (err instanceof DocumentNotFoundError) {
         res
           .status(NOT_FOUND_ERROR)
           .send({ message: 'Запрашиваемый пост не найден' });

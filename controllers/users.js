@@ -1,4 +1,8 @@
-const { CastError, ValidationError } = require('mongoose').Error;
+const {
+  CastError,
+  ValidationError,
+  DocumentNotFoundError,
+} = require('mongoose').Error;
 
 const User = require('../models/user');
 
@@ -23,7 +27,13 @@ function createUser(req, res) {
 
   User.create({ name, about, avatar })
     .then((user) => res.send(user))
-    .catch(() => {
+    .catch((err) => {
+      if (err instanceof ValidationError) {
+        res.status(BAD_REQUEST_ERROR).send({
+          message: 'Переданы некорректные данные при создании пользователя',
+        });
+        return;
+      }
       res
         .status(INTERNAL_SERVER_ERROR)
         .send({ message: 'На сервере произошла ошибка' });
@@ -32,12 +42,23 @@ function createUser(req, res) {
 
 function getUserById(req, res) {
   User.findById(req.params.userId)
-    .then((user) => res.send(user))
+    .then((user) => {
+      if (!user) {
+        throw new DocumentNotFoundError('');
+      }
+      res.send(user);
+    })
     .catch((err) => {
-      if (err instanceof CastError) {
+      if (err instanceof DocumentNotFoundError) {
         res
           .status(NOT_FOUND_ERROR)
           .send({ message: 'Запрашиваемый пользователь не найден' });
+        return;
+      }
+      if (err instanceof CastError) {
+        res.status(BAD_REQUEST_ERROR).send({
+          message: 'Переданы некорректные данные при поиске пользователя',
+        });
         return;
       }
       res
