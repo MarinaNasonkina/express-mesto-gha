@@ -1,6 +1,6 @@
-# Учебный проект "Место: фронтенд + бэкенд"
-
 [![Tests](../../actions/workflows/tests-13-sprint.yml/badge.svg)](../../actions/workflows/tests-13-sprint.yml) [![Tests](../../actions/workflows/tests-14-sprint.yml/badge.svg)](../../actions/workflows/tests-14-sprint.yml)
+
+# Учебный проект "Место: фронтенд + бэкенд"
 
 **Mesto - сервис, зарегистрировавшись в котором, можно добавлять фотографии, удалять их и ставить лайки.**
 
