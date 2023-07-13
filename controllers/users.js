@@ -1,12 +1,9 @@
-const {
-  CastError,
-  ValidationError,
-  DocumentNotFoundError,
-} = require('mongoose').Error;
+const { CastError, ValidationError, DocumentNotFoundError } = require('mongoose').Error;
 
 const User = require('../models/user');
 
 const {
+  CREATED_CODE,
   BAD_REQUEST_ERROR,
   NOT_FOUND_ERROR,
   INTERNAL_SERVER_ERROR,
@@ -26,11 +23,11 @@ function createUser(req, res) {
   const { name, about, avatar } = req.body;
 
   User.create({ name, about, avatar })
-    .then((user) => res.send(user))
+    .then((user) => res.status(CREATED_CODE).send(user))
     .catch((err) => {
       if (err instanceof ValidationError) {
         res.status(BAD_REQUEST_ERROR).send({
-          message: 'Переданы некорректные данные при создании пользователя',
+          message: `Переданы некорректные данные: ${Object.values(err.errors).join(', ')}`,
         });
         return;
       }
@@ -42,12 +39,8 @@ function createUser(req, res) {
 
 function getUserById(req, res) {
   User.findById(req.params.userId)
-    .then((user) => {
-      if (!user) {
-        throw new DocumentNotFoundError('');
-      }
-      res.send(user);
-    })
+    .orFail()
+    .then((user) => res.send(user))
     .catch((err) => {
       if (err instanceof DocumentNotFoundError) {
         res
@@ -75,18 +68,25 @@ function updateProfile(req, res) {
     { name, about },
     { new: true, runValidators: true },
   )
+    .orFail()
     .then((user) => res.send(user))
     .catch((err) => {
       if (err instanceof CastError) {
-        res
-          .status(NOT_FOUND_ERROR)
-          .send({ message: 'Запрашиваемый пользователь не найден' });
+        res.status(BAD_REQUEST_ERROR).send({
+          message: 'Передан некорректный id пользователя',
+        });
         return;
       }
       if (err instanceof ValidationError) {
         res.status(BAD_REQUEST_ERROR).send({
-          message: 'Переданы некорректные данные при обновлении профиля',
+          message: `Переданы некорректные данные: ${Object.values(err.errors).join(', ')}`,
         });
+        return;
+      }
+      if (err instanceof DocumentNotFoundError) {
+        res
+          .status(NOT_FOUND_ERROR)
+          .send({ message: 'Запрашиваемый пользователь не найден' });
         return;
       }
       res
@@ -103,18 +103,25 @@ function updateAvatar(req, res) {
     { avatar },
     { new: true, runValidators: true },
   )
+    .orFail()
     .then((user) => res.send(user))
     .catch((err) => {
       if (err instanceof CastError) {
-        res
-          .status(NOT_FOUND_ERROR)
-          .send({ message: 'Запрашиваемый пользователь не найден' });
+        res.status(BAD_REQUEST_ERROR).send({
+          message: 'Передан некорректный id пользователя',
+        });
         return;
       }
       if (err instanceof ValidationError) {
         res.status(BAD_REQUEST_ERROR).send({
-          message: 'Переданы некорректные данные при обновлении аватара',
+          message: `Переданы некорректные данные: ${Object.values(err.errors).join(', ')}`,
         });
+        return;
+      }
+      if (err instanceof DocumentNotFoundError) {
+        res
+          .status(NOT_FOUND_ERROR)
+          .send({ message: 'Запрашиваемый пользователь не найден' });
         return;
       }
       res
