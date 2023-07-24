@@ -1,75 +1,52 @@
-const {
-  CastError,
-  ValidationError,
-  DocumentNotFoundError,
-} = require('mongoose').Error;
+const { DocumentNotFoundError } = require('mongoose').Error;
 
 const Card = require('../models/card');
 
-const {
-  CREATED_CODE,
-  BAD_REQUEST_ERROR,
-  NOT_FOUND_ERROR,
-  INTERNAL_SERVER_ERROR,
-} = require('../utils/constants');
+const ForbiddenError = require('../errors/forbidden-err');
+const NotFoundError = require('../errors/not-found-err');
 
-function getCards(req, res) {
+const { CREATED_CODE } = require('../utils/constants');
+
+function getCards(req, res, next) {
   Card.find({})
     .populate('owner')
     .then((cards) => res.send(cards))
-    .catch(() => {
-      res
-        .status(INTERNAL_SERVER_ERROR)
-        .send({ message: 'На сервере произошла ошибка' });
-    });
+    .catch(next);
 }
 
-function createCard(req, res) {
+function createCard(req, res, next) {
   const { name, link } = req.body;
   const owner = req.user._id;
 
   Card.create({ name, link, owner })
     .then((card) => card.populate('owner'))
     .then((card) => res.status(CREATED_CODE).send(card))
-    .catch((err) => {
-      if (err instanceof ValidationError) {
-        res
-          .status(BAD_REQUEST_ERROR)
-          .send({
-            message: `Переданы некорректные данные: ${Object.values(err.errors).join(', ')}`,
-          });
-        return;
-      }
-      res
-        .status(INTERNAL_SERVER_ERROR)
-        .send({ message: 'На сервере произошла ошибка' });
-    });
+    .catch(next);
 }
 
-function deleteCard(req, res) {
-  Card.findByIdAndRemove(req.params.cardId)
+function deleteCard(req, res, next) {
+  Card.findById(req.params.cardId)
     .orFail()
-    .then(() => res.send({ message: 'Пост удалён' }))
+    .then((card) => {
+      const ownerId = card.owner._id.toString();
+
+      if (ownerId !== req.user._id) {
+        throw new ForbiddenError('Нельзя удалить чужой пост');
+      }
+
+      Card.findByIdAndRemove(req.params.cardId)
+        .then(() => res.send({ message: 'Пост удалён' }));
+    })
     .catch((err) => {
       if (err instanceof DocumentNotFoundError) {
-        res
-          .status(NOT_FOUND_ERROR)
-          .send({ message: 'Запрашиваемый пост не найден' });
-        return;
+        next(new NotFoundError('Запрашиваемый пост не найден'));
+      } else {
+        next(err);
       }
-      if (err instanceof CastError) {
-        res.status(BAD_REQUEST_ERROR).send({
-          message: 'Переданы некорректные данные при удалении карточки',
-        });
-        return;
-      }
-      res
-        .status(INTERNAL_SERVER_ERROR)
-        .send({ message: 'На сервере произошла ошибка' });
     });
 }
 
-function putLike(req, res) {
+function putLike(req, res, next) {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
@@ -80,24 +57,14 @@ function putLike(req, res) {
     .then((card) => res.send(card))
     .catch((err) => {
       if (err instanceof DocumentNotFoundError) {
-        res
-          .status(NOT_FOUND_ERROR)
-          .send({ message: 'Запрашиваемый пост не найден' });
-        return;
+        next(new NotFoundError('Запрашиваемый пост не найден'));
+      } else {
+        next(err);
       }
-      if (err instanceof CastError) {
-        res.status(BAD_REQUEST_ERROR).send({
-          message: 'Переданы некорректные данные при постановке лайка',
-        });
-        return;
-      }
-      res
-        .status(INTERNAL_SERVER_ERROR)
-        .send({ message: 'На сервере произошла ошибка' });
     });
 }
 
-function deleteLike(req, res) {
+function deleteLike(req, res, next) {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
@@ -108,20 +75,10 @@ function deleteLike(req, res) {
     .then((card) => res.send(card))
     .catch((err) => {
       if (err instanceof DocumentNotFoundError) {
-        res
-          .status(NOT_FOUND_ERROR)
-          .send({ message: 'Запрашиваемый пост не найден' });
-        return;
+        next(new NotFoundError('Запрашиваемый пост не найден'));
+      } else {
+        next(err);
       }
-      if (err instanceof CastError) {
-        res.status(BAD_REQUEST_ERROR).send({
-          message: 'Переданы некорректные данные при снятии лайка',
-        });
-        return;
-      }
-      res
-        .status(INTERNAL_SERVER_ERROR)
-        .send({ message: 'На сервере произошла ошибка' });
     });
 }
 

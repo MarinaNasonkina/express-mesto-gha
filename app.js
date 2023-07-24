@@ -1,34 +1,49 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { errors } = require('celebrate');
+
+const auth = require('./middlewares/auth');
+const { validateAuthData, validateUser } = require('./middlewares/validation-joi');
+const centralHandleErr = require('./middlewares/central-handle-err');
+
+const { login, createUser } = require('./controllers/users');
 
 const users = require('./routes/users');
 const cards = require('./routes/cards');
 
-const { NOT_FOUND_ERROR } = require('./utils/constants');
+const NotFoundError = require('./errors/not-found-err');
 
-const { PORT = 3000, DB_URL = 'mongodb://127.0.0.1:27017/mestodb' } = process.env;
+const { PORT, DB_URL } = require('./utils/constants');
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+});
 
 const app = express();
 
-app.use(helmet());
 app.use(bodyParser.json());
+app.use(cookieParser());
+app.use(helmet());
+app.use(limiter);
 
-app.use((req, res, next) => {
-  req.user = {
-    _id: '64ad58a1e9fd7109afdd5ff5',
-  };
+app.post('/signin', validateAuthData, login);
+app.post('/signup', validateUser, createUser);
 
-  next();
-});
-
+app.use(auth);
 app.use('/users', users);
 app.use('/cards', cards);
 
-app.use('/', (req, res) => {
-  res.status(NOT_FOUND_ERROR).send({ message: 'Страница не найдена' });
+app.use('*', (req, res, next) => {
+  next(new NotFoundError('Страница не найдена'));
 });
+
+app.use(errors());
+app.use(centralHandleErr);
 
 mongoose.connect(DB_URL, {
   useNewUrlParser: true,
