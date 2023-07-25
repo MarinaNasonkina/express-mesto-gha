@@ -8,7 +8,7 @@ const {
 } = process.env;
 
 // eslint-disable-next-line no-useless-escape
-const regexLink = /https?:\/\/(www.)?[\w\-\.]+(ru|com)[\w\-\.~:\/?#\[\]@!;&'\(\)*\+,;=]*/;
+const regexLink = /https?:\/\/(www.)?[\w\-\.]+(ru|com|net)[\w\-\.~:\/?#\[\]@!;&'\(\)*\+,;=]*/;
 
 const CREATED_CODE = 201;
 
