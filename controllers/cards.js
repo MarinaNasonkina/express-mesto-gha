@@ -34,7 +34,7 @@ function deleteCard(req, res, next) {
         throw new ForbiddenError('Нельзя удалить чужой пост');
       }
 
-      Card.findByIdAndRemove(req.params.cardId)
+      Card.deleteOne(card)
         .then(() => res.send({ message: 'Пост удалён' }));
     })
     .catch((err) => {

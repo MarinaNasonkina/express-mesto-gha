@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
 
-const UnauthorizedError = require('../errors/unauthorized-err');
 const NotFoundError = require('../errors/not-found-err');
 const ConflictError = require('../errors/conflict-err');
 
@@ -28,13 +27,7 @@ function login(req, res, next) {
       });
       res.send({ token });
     })
-    .catch((err) => {
-      if (err instanceof DocumentNotFoundError) {
-        next(new UnauthorizedError('Неправильные почта или пароль'));
-      } else {
-        next(err);
-      }
-    });
+    .catch(next);
 }
 
 function createUser(req, res, next) {

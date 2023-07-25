@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
-const { DocumentNotFoundError } = require('mongoose').Error;
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
+
+const UnauthorizedError = require('../errors/unauthorized-err');
 
 const { regexLink } = require('../utils/constants');
 
@@ -54,7 +55,7 @@ userSchema.statics.findUserByCredentials = function (email, password) {
     .then((user) => bcrypt.compare(password, user.password)
       .then((matched) => {
         if (!matched) {
-          throw new DocumentNotFoundError('');
+          throw new UnauthorizedError('Неправильные почта или пароль');
         }
         return user;
       }));
